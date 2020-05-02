@@ -71,7 +71,7 @@ class GeminiServer:
         self.host = host
         self.port = port
 
-    def server_forever(self):
+    def serve_forever(self):
         with socketserver.ThreadingTCPServer(
                 (self.host, self.port), GeminiRequestHandler) as server:
             server.serve_forever()
@@ -79,4 +79,4 @@ class GeminiServer:
 
 if __name__ == "__main__":
     gs = GeminiServer("localhost", 1965)
-    gs.server_forever()
+    gs.serve_forever()
