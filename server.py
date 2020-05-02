@@ -5,6 +5,8 @@ A simple Gemini server.
 TODO: add TLS
 
 """
+import os
+from pathlib import Path
 import socketserver
 from typing import Optional
 
@@ -16,22 +18,10 @@ BUFFER_SIZE = 2048
 
 class GeminiRequestHandler(socketserver.BaseRequestHandler):
 
-    _docs = {
-        "/foo": bytes("this is the foo doc", "utf-8"),
-        "/bar": bytes("this is the bar doc", "utf-8"),
-    }
-
     def handle(self):
         # Receive request
         gemini_request = self.request.recv(BUFFER_SIZE)
         url = self.request_to_url(gemini_request)
-
-        if len(url) == 0:
-            response = self.make_response(StatusCode.NOT_FOUND)
-            self.request.sendall(response)
-
-        if url[-1] == "/":
-            url = url[:-1]
 
         # Try to get doc for requested url
         doc = self.get_page(url)
@@ -62,21 +52,46 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
         return ret
 
     def get_page(self, url: str) -> Optional[str]:
-        return self._docs.get(url)
+        # Remove leading and trailing "/"'s
+        while len(url) > 0 and url[0] == "/":
+            url = url[1:]
+        while len(url) > 0 and url[-1] == "/":
+            url = url[:-1]
+
+        if len(url) == 0:
+            return None
+
+        # Absolute path with symlinks, ..'s, and ~'s resolved
+        path = Path(
+            os.path.realpath(
+                os.path.expanduser(
+                    os.path.join(self.server.root_path, url))))
+
+        # Only serve result if the requested path is nested below the root
+        # (otherwise, this is probably an attempt to gain unauthorized access)
+        if self.server.root_path in path.parents and path.exists():
+            with open(path, "rb") as f:
+                return f.read()
+        else:
+            return None
 
 
 class GeminiServer:
 
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, root_path: str):
         self.host = host
         self.port = port
+
+        # Absolute path with symlinks, ..'s, and ~'s resolved
+        self.root_path = Path(os.path.realpath(os.path.expanduser(root_path)))
 
     def serve_forever(self):
         with socketserver.ThreadingTCPServer(
                 (self.host, self.port), GeminiRequestHandler) as server:
+            server.root_path = self.root_path
             server.serve_forever()
 
 
 if __name__ == "__main__":
-    gs = GeminiServer("localhost", 1965)
+    gs = GeminiServer("localhost", 1965, "~/gemini_root")
     gs.serve_forever()
