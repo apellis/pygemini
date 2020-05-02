@@ -9,7 +9,7 @@ from collections import namedtuple
 import socket
 from urllib.parse import urlparse
 
-from pygemini.common import CRLF, DEFAULT_PORT, recv_until_closed
+from pygemini.common import CRLF, DEFAULT_PORT, MAX_META_SIZE, recv_until_closed
 from pygemini.status_code import is_success, StatusCode
 
 BUFFER_SIZE = 2048
@@ -55,6 +55,11 @@ class GeminiClient:
             header, body = reply[:crlf_index].decode("utf-8"), reply[crlf_index + len(CRLF):]
             code = int(header[:2])
             meta = header[2:].strip()
+
+            # If code isn't two-digit or if meta has length exceeding 1024, ignore
+            # the response and report and error to the user
+            if code < 10 or code > 99 or len(meta) > MAX_META_SIZE:
+                raise InvalidResponseFromServer()
 
             # If a success code, get doc
             body_str = None
