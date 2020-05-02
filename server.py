@@ -8,7 +8,7 @@ TODO: add TLS
 import os
 from pathlib import Path
 import socketserver
-from typing import Optional
+from typing import Callable, Dict, Optional
 
 from pygemini.common import CRLF, MAX_META_SIZE
 from pygemini.status_code import StatusCode
@@ -21,17 +21,41 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         # Receive request
         gemini_request = self.request.recv(BUFFER_SIZE)
-        url = self.request_to_url(gemini_request)
 
-        # Try to get doc for requested url
-        doc = self.get_page(url)
-        if doc is None:
-            response = self.make_response(StatusCode.NOT_FOUND)
-            self.request.sendall(response)
-        else:
+        resource_name = self.request_to_url(gemini_request)
+
+        # Remove leading "/"'s
+        while len(resource_name) > 0 and resource_name[0] == "/":
+            resource_name = resource_name[1:]
+
+        # If the resource has a query, separate that
+        query = None
+        if (qmark_index := resource_name.find("?")) != -1:
+            query = resource_name[qmark_index + 1:]
+            resource_name = resource_name[:qmark_index]
+
+        # First look for static routes
+        if (doc := self.get_page(resource_name)) is not None:
             response = self.make_response(StatusCode.SUCCESS, "text/gemini")
             self.request.sendall(response)
             self.request.sendall(doc)
+            return
+
+        # Next look for interactive routes
+        if (route_handler := self.server.interactive_routes.get(resource_name)) is not None:
+            if query is None:
+                prompt = route_handler(None)
+                response = self.make_response(StatusCode.INPUT, prompt)
+                self.request.sendall(response)
+            else:
+                response = self.make_response(StatusCode.SUCCESS, "text/gemini")
+                self.request.sendall(response)
+                self.request.sendall(bytes(route_handler(query), "utf-8"))
+            return
+
+        # Route was not found
+        response = self.make_response(StatusCode.NOT_FOUND)
+        self.request.sendall(response)
 
     def request_to_url(self, request: bytes) -> Optional[str]:
         if request[-2:] != CRLF:
@@ -78,20 +102,43 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
 
 class GeminiServer:
 
-    def __init__(self, host: str, port: int, root_path: str):
+    def __init__(self, host: str, port: int, root_path: str,
+                 interactive_routes: Dict[str, Callable[[Optional[str]], str]] = {}):
         self.host = host
         self.port = port
 
         # Absolute path with symlinks, ..'s, and ~'s resolved
         self.root_path = Path(os.path.realpath(os.path.expanduser(root_path)))
 
+        # A mapping from route_name -> handler. If no query parameter is provided,
+        # the handler is called with argument None. Otherwise, the full query
+        # string is send as an argument to the handler.
+        self.interactive_routes = interactive_routes
+
     def serve_forever(self):
         with socketserver.ThreadingTCPServer(
                 (self.host, self.port), GeminiRequestHandler) as server:
             server.root_path = self.root_path
+            server.interactive_routes = self.interactive_routes
             server.serve_forever()
 
 
 if __name__ == "__main__":
-    gs = GeminiServer("localhost", 1965, "~/gemini_root")
+    def greeter(whom: Optional[str]) -> str:
+        if whom is None:
+            return "Whom shall I greet?"
+        else:
+            return f"Howdy, {whom}!"
+
+    def reverser(s: Optional[str]) -> str:
+        if s is None:
+            return "What shall I reverse?"
+        else:
+            return "".join(reversed(s))
+
+    interactive_routes = {
+        "greet": greeter,
+        "reverse": reverser,
+    }
+    gs = GeminiServer("localhost", 1965, "~/gemini_root", interactive_routes)
     gs.serve_forever()

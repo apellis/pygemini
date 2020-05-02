@@ -37,3 +37,10 @@ def is_success(code: Union[int, StatusCode]):
         code = StatusCode(code)
 
     return code.value >= 20 and code.value <= 29
+
+
+def is_input(code: Union[int, StatusCode]):
+    if isinstance(code, int):
+        code = StatusCode(code)
+
+    return code.value >= 10 and code.value <= 19
