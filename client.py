@@ -66,7 +66,7 @@ class GeminiClient:
 
             sock.close()
 
-            return GeminiResponse(code=code.value, meta=meta, body=body_str)
+            return GeminiResponse(code=code, meta=meta, body=body_str)
 
 
 if __name__ == "__main__":
