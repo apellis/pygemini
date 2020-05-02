@@ -88,10 +88,12 @@ if __name__ == "__main__":
     BRIGHT_WHITE = colorama.Style.BRIGHT + colorama.Fore.WHITE
     RESET_OUT = colorama.Style.RESET_ALL
 
+    code_name = StatusCode(response.code).name.replace("_", " ")
     code_color = BRIGHT_GREEN if is_success(response.code) else BRIGHT_RED
 
-    print(f"{BRIGHT_WHITE}Response header: {code_color}{str(response.code)}{RESET_OUT} "
-          f"{response.meta}")
+    print(f"{BRIGHT_WHITE}Response header: "
+          f"{code_color}{str(response.code)} ({code_name}) "
+          f"{response.meta}{RESET_OUT}")
     if response.body is not None:
         print(f"{BRIGHT_WHITE}Response body:{RESET_OUT}")
         print(response.body)
