@@ -1,3 +1,4 @@
+"""Common functions and constants for Gemini."""
 import socket
 
 CRLF = b"\r\n"

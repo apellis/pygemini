@@ -10,6 +10,7 @@ import socket
 from urllib.parse import urlparse
 
 from pygemini.common import CRLF, DEFAULT_PORT, recv_until_closed
+from pygemini.status_code import is_success, StatusCode
 
 BUFFER_SIZE = 2048
 
@@ -57,7 +58,7 @@ class GeminiClient:
 
             # If a success code, get doc
             body_str = None
-            if code >= 20 and code <= 29:
+            if is_success(code):
                 if meta in ["text/gemini", "text/plain"]:
                     body_str = body.decode("utf-8")
                 else:
@@ -65,11 +66,14 @@ class GeminiClient:
 
             sock.close()
 
-            return GeminiResponse(code=code, meta=meta, body=body_str)
+            return GeminiResponse(code=code.value, meta=meta, body=body_str)
 
 
 if __name__ == "__main__":
     import argparse
+    import colorama
+
+    colorama.init()
 
     parser = argparse.ArgumentParser(description="Gemini protocol client")
     parser.add_argument("url", type=str, nargs=1, help="URL to fetch")
@@ -79,7 +83,15 @@ if __name__ == "__main__":
     client = GeminiClient()
     response = client.get(args.url[0])
 
-    print(f"Response header: {response.code} {response.meta}")
+    BRIGHT_GREEN = colorama.Style.BRIGHT + colorama.Fore.GREEN
+    BRIGHT_RED = colorama.Style.BRIGHT + colorama.Fore.RED
+    BRIGHT_WHITE = colorama.Style.BRIGHT + colorama.Fore.WHITE
+    RESET_OUT = colorama.Style.RESET_ALL
+
+    code_color = BRIGHT_GREEN if is_success(response.code) else BRIGHT_RED
+
+    print(f"{BRIGHT_WHITE}Response header: {code_color}{str(response.code)}{RESET_OUT} "
+          f"{response.meta}")
     if response.body is not None:
-        print(f"Response body:")
+        print(f"{BRIGHT_WHITE}Response body:{RESET_OUT}")
         print(response.body)

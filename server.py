@@ -9,6 +9,7 @@ import socketserver
 from typing import Optional
 
 from pygemini.common import CRLF, MAX_META_SIZE
+from pygemini.status_code import StatusCode
 
 BUFFER_SIZE = 2048
 
@@ -26,7 +27,7 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
         url = self.request_to_url(gemini_request)
 
         if len(url) == 0:
-            response = self.make_response(51)
+            response = self.make_response(StatusCode.NOT_FOUND)
             self.request.sendall(response)
 
         if url[-1] == "/":
@@ -35,10 +36,10 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
         # Try to get doc for requested url
         doc = self.get_page(url)
         if doc is None:
-            response = self.make_response(51)
+            response = self.make_response(StatusCode.NOT_FOUND)
             self.request.sendall(response)
         else:
-            response = self.make_response(20, "text/gemini")
+            response = self.make_response(StatusCode.SUCCESS, "text/gemini")
             self.request.sendall(response)
             self.request.sendall(doc)
 
@@ -49,11 +50,11 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
 
         return request[:-2].decode("utf-8")
 
-    def make_response(self, code: int, meta: str = "") -> bytes:
+    def make_response(self, code: StatusCode, meta: str = "") -> bytes:
         if len(meta) > MAX_META_SIZE:
             raise ValueError(f"Response meta too long")
 
-        ret = bytes(str(code) + " ", "utf-8")
+        ret = bytes(str(code.value) + " ", "utf-8")
         if meta is not None:
             ret += bytes(meta, "utf-8")
         ret += CRLF
