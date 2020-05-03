@@ -83,27 +83,48 @@ if __name__ == "__main__":
     BRIGHT_WHITE = colorama.Style.BRIGHT + colorama.Fore.WHITE
     RESET_OUT = colorama.Style.RESET_ALL
 
-    def _print_response_header(response: GeminiResponse):
-        code_name = StatusCode(response.code).name.replace("_", " ")
-        if is_success(response.code) or is_input(response.code):
-            code_color = BRIGHT_GREEN
-        else:
-            code_color = BRIGHT_RED
-        print(
-            f"{BRIGHT_WHITE}Response header: "
-            f"{code_color}{str(response.code)} ({code_name}) "
-            f"{response.meta}{RESET_OUT}"
-        )
+    def _print_response_header(response: GeminiResponse, use_simple_mode: bool = False):
+        if use_simple_mode and (is_success(response.code) or is_input(response.code)):
+            # No need to print a response header for success or input responses in
+            # simple mode
+            return
 
-    def _print_response_body(response: GeminiResponse):
-        print(f"{BRIGHT_WHITE}Response body:{RESET_OUT}")
+        code_name = StatusCode(response.code).name.replace("_", " ")
+        header_text = f"{str(response.code)} ({code_name}) {response.meta}"
+        if use_simple_mode:
+            print(f"Response header: {header_text}")
+        else:
+            if is_success(response.code) or is_input(response.code):
+                code_color = BRIGHT_GREEN
+            else:
+                code_color = BRIGHT_RED
+            print(
+                f"{BRIGHT_WHITE}Response header: {code_color}{header_text}{RESET_OUT}"
+            )
+
+    def _print_response_body(response: GeminiResponse, use_simple_mode: bool = False):
+        if not use_simple_mode:
+            print(f"{BRIGHT_WHITE}Response body:{RESET_OUT}")
+
         print(response.body)
 
-    def _prompt_for_input(prompt: str):
-        return input(BRIGHT_WHITE + prompt + RESET_OUT + " ")
+    def _prompt_for_input(prompt: str, use_simple_mode: bool = False):
+        if not use_simple_mode:
+            prompt = BRIGHT_WHITE + prompt + RESET_OUT
+
+        return input(prompt + " ")
 
     parser = argparse.ArgumentParser(description="Gemini protocol client")
     parser.add_argument("url", type=str, nargs=1, help="URL to fetch")
+    parser.add_argument(
+        "-s",
+        "--simple",
+        dest="use_simple_mode",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Run in simple mode (return page contents only, " "no terminal formatting",
+    )
     args = parser.parse_args()
     url = args.url[0]
 
@@ -113,10 +134,10 @@ if __name__ == "__main__":
     while is_input(response.code):
         # The server requested input from the client; prompt the user for input
         # and re-request
-        _print_response_header(response)
-        input_str = _prompt_for_input(response.meta)
+        _print_response_header(response, args.use_simple_mode)
+        input_str = _prompt_for_input(response.meta, args.use_simple_mode)
         response = client.get(url + "?" + input_str)
 
-    _print_response_header(response)
+    _print_response_header(response, args.use_simple_mode)
     if response.body is not None:
-        _print_response_body(response)
+        _print_response_body(response, args.use_simple_mode)
