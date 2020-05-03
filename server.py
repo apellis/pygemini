@@ -17,7 +17,6 @@ BUFFER_SIZE = 2048
 
 
 class GeminiRequestHandler(socketserver.BaseRequestHandler):
-
     def handle(self):
         # Receive request
         gemini_request = self.request.recv(BUFFER_SIZE)
@@ -31,7 +30,7 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
         # If the resource has a query, separate that
         query = None
         if (qmark_index := resource_name.find("?")) != -1:
-            query = resource_name[qmark_index + 1:]
+            query = resource_name[qmark_index + 1 :]
             resource_name = resource_name[:qmark_index]
 
         # First look for static routes
@@ -42,7 +41,7 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
             return
 
         # Next look for interactive routes
-        if (route_handler := self.server.interactive_routes.get(resource_name)) is not None:
+        if (route_handler := self.server.interactive_routes.get(resource_name)) is not None:  # type: ignore
             if query is None:
                 prompt = route_handler(None)
                 response = self.make_response(StatusCode.INPUT, prompt)
@@ -77,7 +76,7 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
 
         return ret
 
-    def get_page(self, url: str) -> Optional[str]:
+    def get_page(self, url: str) -> Optional[bytes]:
         # Remove leading and trailing "/"'s
         while len(url) > 0 and url[0] == "/":
             url = url[1:]
@@ -90,24 +89,28 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
         # Absolute path with symlinks, ..'s, and ~'s resolved
         path = Path(
             os.path.realpath(
-                os.path.expanduser(
-                    os.path.join(self.server.root_path, url))))
+                os.path.expanduser(os.path.join(self.server.root_path, url))  # type: ignore
+            )
+        )
 
         # Only serve result if the requested path is nested below the root
         # (otherwise, this is probably an attempt to gain unauthorized access)
-        if self.server.root_path in path.parents and path.exists():
+        if self.server.root_path in path.parents and path.exists():  # type: ignore
             with open(path, "rb") as f:
                 return f.read()
         else:
             return None
 
 
-class GeminiServer:
-
-    def __init__(self, host: str, port: int, root_path: str,
-                 interactive_routes: Dict[str, Callable[[Optional[str]], str]] = {}):
-        self.host = host
-        self.port = port
+class GeminiServer(socketserver.ThreadingTCPServer):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        root_path: str,
+        interactive_routes: Dict[str, Callable[[Optional[str]], str]] = {},
+    ):
+        super().__init__((host, port), GeminiRequestHandler)
 
         # Absolute path with symlinks, ..'s, and ~'s resolved
         self.root_path = Path(os.path.realpath(os.path.expanduser(root_path)))
@@ -117,15 +120,9 @@ class GeminiServer:
         # string is send as an argument to the handler.
         self.interactive_routes = interactive_routes
 
-    def serve_forever(self):
-        with socketserver.ThreadingTCPServer(
-                (self.host, self.port), GeminiRequestHandler) as server:
-            server.root_path = self.root_path
-            server.interactive_routes = self.interactive_routes
-            server.serve_forever()
-
 
 if __name__ == "__main__":
+
     def greeter(whom: Optional[str]) -> str:
         if whom is None:
             return "Whom shall I greet?"

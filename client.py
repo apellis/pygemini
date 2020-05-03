@@ -20,7 +20,6 @@ GeminiResponse = namedtuple("GeminiResponse", ["code", "meta", "body"])
 
 
 class GeminiClient:
-
     def get(self, url: str) -> GeminiResponse:
         url_obj = urlparse(url)
 
@@ -32,7 +31,7 @@ class GeminiClient:
             port = DEFAULT_PORT
         else:
             host = url_obj.netloc[:colon_index]
-            port = int(url_obj.netloc[colon_index + 1:])
+            port = int(url_obj.netloc[colon_index + 1 :])
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0) as sock:
             # Connect and send request
@@ -48,7 +47,10 @@ class GeminiClient:
             if crlf_index == -1:
                 # No CRLF in the response
                 raise InvalidResponseFromServer()
-            header, body = reply[:crlf_index].decode("utf-8"), reply[crlf_index + len(CRLF):]
+            header, body = (
+                reply[:crlf_index].decode("utf-8"),
+                reply[crlf_index + len(CRLF) :],
+            )
             code = int(header[:2])
             meta = header[2:].strip()
 
@@ -87,9 +89,11 @@ if __name__ == "__main__":
             code_color = BRIGHT_GREEN
         else:
             code_color = BRIGHT_RED
-        print(f"{BRIGHT_WHITE}Response header: "
-              f"{code_color}{str(response.code)} ({code_name}) "
-              f"{response.meta}{RESET_OUT}")
+        print(
+            f"{BRIGHT_WHITE}Response header: "
+            f"{code_color}{str(response.code)} ({code_name}) "
+            f"{response.meta}{RESET_OUT}"
+        )
 
     def _print_response_body(response: GeminiResponse):
         print(f"{BRIGHT_WHITE}Response body:{RESET_OUT}")

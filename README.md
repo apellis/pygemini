@@ -6,7 +6,7 @@ This is a hobby project. Please have no expectations! The goal is to write a "go
 
 Here are some TODO items, very roughly in descending order of importance.
 
-* Python niceties: consistent docstrings, pass mypy tests, automatic linting, etc.
+* Add good docstrings
 * Make the client render `text/gemini` responses nicely instead of dumping the raw text.
 * Add TLS to client and server, including client certificates.
 	* There's a lot to do here (e.g. handling of transient client certificates).
