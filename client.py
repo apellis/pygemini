@@ -88,19 +88,7 @@ if __name__ == "__main__":
     BRIGHT_WHITE = colorama.Style.BRIGHT + colorama.Fore.WHITE
     RESET_OUT = colorama.Style.RESET_ALL
 
-    parser = argparse.ArgumentParser(description="Gemini protocol client")
-    parser.add_argument("url", type=str, nargs=1, help="URL to fetch")
-
-    args = parser.parse_args()
-    url = args.url[0]
-
-    client = GeminiClient()
-
-    response = client.get(url)
-
-    while is_input(response.code):
-        # The server requests input from the client; prompt the user for input
-        # and re-request
+    def _print_response_header(response: GeminiResponse):
         code_name = StatusCode(response.code).name.replace("_", " ")
         if is_success(response.code) or is_input(response.code):
             code_color = BRIGHT_GREEN
@@ -109,18 +97,29 @@ if __name__ == "__main__":
         print(f"{BRIGHT_WHITE}Response header: "
               f"{code_color}{str(response.code)} ({code_name}) "
               f"{response.meta}{RESET_OUT}")
-        input_str = input(BRIGHT_WHITE + response.meta + RESET_OUT + " ")
-        response = client.get(url + "?" + input_str)
 
-    code_name = StatusCode(response.code).name.replace("_", " ")
-    if is_success(response.code) or is_input(response.code):
-        code_color = BRIGHT_GREEN
-    else:
-        code_color = BRIGHT_RED
-
-    print(f"{BRIGHT_WHITE}Response header: "
-          f"{code_color}{str(response.code)} ({code_name}) "
-          f"{response.meta}{RESET_OUT}")
-    if response.body is not None:
+    def _print_response_body(response: GeminiResponse):
         print(f"{BRIGHT_WHITE}Response body:{RESET_OUT}")
         print(response.body)
+
+    def _prompt_for_input(prompt: str):
+        return input(BRIGHT_WHITE + prompt + RESET_OUT + " ")
+
+    parser = argparse.ArgumentParser(description="Gemini protocol client")
+    parser.add_argument("url", type=str, nargs=1, help="URL to fetch")
+    args = parser.parse_args()
+    url = args.url[0]
+
+    client = GeminiClient()
+
+    response = client.get(url)
+    while is_input(response.code):
+        # The server requested input from the client; prompt the user for input
+        # and re-request
+        _print_response_header(response)
+        input_str = _prompt_for_input(response.meta)
+        response = client.get(url + "?" + input_str)
+
+    _print_response_header(response)
+    if response.body is not None:
+        _print_response_body(response)
