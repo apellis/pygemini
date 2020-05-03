@@ -57,14 +57,16 @@ class GeminiRequestHandler(socketserver.BaseRequestHandler):
         response = self.make_response(StatusCode.NOT_FOUND)
         self.request.sendall(response)
 
-    def request_to_url(self, request: bytes) -> Optional[str]:
+    @staticmethod
+    def request_to_url(request: bytes) -> Optional[str]:
         if request[-2:] != CRLF:
             # A valid request must end with <CR><LF>
             return None
 
         return request[:-2].decode("utf-8")
 
-    def make_response(self, code: StatusCode, meta: str = "") -> bytes:
+    @staticmethod
+    def make_response(code: StatusCode, meta: str = "") -> bytes:
         if len(meta) > MAX_META_SIZE:
             raise ValueError(f"Response meta too long")
 
