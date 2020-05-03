@@ -10,17 +10,10 @@ import socket
 from urllib.parse import urlparse
 
 from pygemini.common import CRLF, DEFAULT_PORT, MAX_META_SIZE, recv_until_closed
+from pygemini.exceptions import InvalidResponseFromServer, UnsupportedMimeType
 from pygemini.status_code import is_input, is_success, StatusCode
 
 BUFFER_SIZE = 2048
-
-
-class InvalidResponseFromServer(Exception):
-    pass
-
-
-class UnsupportedMimeType(Exception):
-    pass
 
 
 GeminiResponse = namedtuple("GeminiResponse", ["code", "meta", "body"])
